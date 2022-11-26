@@ -16,6 +16,22 @@ app.use(express.json());
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.kzjjck3.mongodb.net/?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
+
+function verifyJwt(req, res, next) {
+    const authHeader = req.header.authorization;
+    if (!authHeader) {
+        return res.status(401).send('UnAuthorized Access')
+    }
+    const token = authHeader.split(' ')[1];
+    jwt.verify(token, process.env.ACCESS_TOKEN, function (err, decoded) {
+        if (err) {
+            return res.status(403).send({ message: 'forbidden access' })
+        }
+        req.decoded = decoded;
+        next();
+    })
+}
+
 async function run() {
     try {
         const productsCollection = client.db('resalesDokan').collection('products');
@@ -50,10 +66,16 @@ async function run() {
             const result = await optionsBrandCollection.find(filter).toArray()
             res.send(result)
         })
-        /* booking collection api*/
+        /* bookings collection api*/
 
-        app.get('/bookings', async (req, res) => {
+        app.get('/bookings', verifyJwt, async (req, res) => {
             const email = req.query.email;
+            const decodedEmail = req.decoded.email;
+
+            if (email !== decodedEmail) {
+                return res.status(403).send({ message: 'forbidden access' })
+            }
+
             const query = { email: email }
             const bookings = await bookingsCollection.find(query).toArray();
             res.send(bookings)
@@ -75,7 +97,19 @@ async function run() {
             res.send(result);
         })
 
-        /* users collection api */
+        /* users collection api and jwt token */
+
+        app.get('/jwt', async (req, res) => {
+            const email = req.query.email;
+            const query = { email: email };
+            const user = await usersCollection.findOne(query);
+            if (user) {
+                const token = jwt.sign({ email }, process.env.ACCESS_TOKEN, { expiresIn: '1d' });
+                return res.send({ accessToken: token })
+            }
+            res.status(403).send({ accessToken: '' });
+        })
+
         app.post('/users', async (req, res) => {
             const user = req.body;
             const result = await usersCollection.insertOne(user)
