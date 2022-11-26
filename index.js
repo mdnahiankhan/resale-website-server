@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const jwt = require('jsonwebtoken');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
 const port = process.env.PORT || 5000;
@@ -20,6 +21,10 @@ async function run() {
         const productsCollection = client.db('resalesDokan').collection('products');
         const optionsBrandCollection = client.db('resalesDokan').collection('options');
         const bookingsCollection = client.db('resalesDokan').collection('bookings');
+        const usersCollection = client.db('resalesDokan').collection('users');
+
+        /* products collection api */
+
         app.get('/products', async (req, res) => {
             const query = {}
             const product = await productsCollection.find(query).toArray();
@@ -31,6 +36,9 @@ async function run() {
             const result = await productsCollection.find(filter).toArray();
             res.send(result)
         })
+
+        /* options collection api*/
+
         app.get('/options', async (req, res) => {
             const query = {}
             const option = await optionsBrandCollection.find(query).toArray();
@@ -42,7 +50,14 @@ async function run() {
             const result = await optionsBrandCollection.find(filter).toArray()
             res.send(result)
         })
-        /* booking collection */
+        /* booking collection api*/
+
+        app.get('/bookings', async (req, res) => {
+            const email = req.query.email;
+            const query = { email: email }
+            const bookings = await bookingsCollection.find(query).toArray();
+            res.send(bookings)
+        })
 
         app.post('/bookings', async (req, res) => {
             const booking = req.body;
@@ -58,6 +73,13 @@ async function run() {
 
             const result = await bookingsCollection.insertOne(booking);
             res.send(result);
+        })
+
+        /* users collection api */
+        app.post('/users', async (req, res) => {
+            const user = req.body;
+            const result = await usersCollection.insertOne(user)
+            res.send(result)
         })
 
     }
