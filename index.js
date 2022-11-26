@@ -19,6 +19,7 @@ async function run() {
     try {
         const productsCollection = client.db('resalesDokan').collection('products');
         const optionsBrandCollection = client.db('resalesDokan').collection('options');
+        const bookingsCollection = client.db('resalesDokan').collection('bookings');
         app.get('/products', async (req, res) => {
             const query = {}
             const product = await productsCollection.find(query).toArray();
@@ -35,13 +36,19 @@ async function run() {
             const option = await optionsBrandCollection.find(query).toArray();
             res.send(option);
         })
-        // app.get('/options/:id', async (req, res) => {
-        //     const id = req.params.id
-        //     const filter = { category_id: id }
-        //     const result = await optionsBrandCollection.findOne(filter)
-        //     res.send(result)
-        // })
+        app.get('/options/:id', async (req, res) => {
+            const category_id = req.params.id
+            const filter = { category_id: category_id }
+            const result = await optionsBrandCollection.find(filter).toArray()
+            res.send(result)
+        })
+        /* booking collection */
 
+        app.post('/bookings', async (req, res) => {
+            const booking = req.body;
+            const result = await bookingsCollection.insertOne(booking);
+            res.send(result);
+        })
 
     }
     finally {
@@ -49,17 +56,6 @@ async function run() {
     }
 }
 run().catch(console.log)
-
-const options = require('./data/catagories.json')
-
-app.get('/options', (req, res) => {
-    res.send(options)
-})
-app.get('/options/:id', async (req, res) => {
-    const id = req.params.id
-    const category_id = options.filter(option => option.category_id === id);
-    res.send(category_id)
-})
 
 app.get('/', async (req, res) => {
     res.send('Resale website is running')
