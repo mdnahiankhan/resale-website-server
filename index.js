@@ -38,6 +38,20 @@ async function run() {
         const optionsBrandCollection = client.db('resalesDokan').collection('options');
         const bookingsCollection = client.db('resalesDokan').collection('bookings');
         const usersCollection = client.db('resalesDokan').collection('users');
+        const sellersCollection = client.db('resalesDokan').collection('sellers');
+        const addproductsCollection = client.db('resalesDokan').collection('addproducts');
+
+        /* verify admin */
+        const verifyAdmin = async (req, res, next) => {
+            console.log('inside the verify admin', req.decoded.email);
+            const decodedEmail = req.decoded.email;
+            const query = { email: decodedEmail };
+            const sellers = await sellersCollection.findOne(query);
+            if (sellers?.role !== 'admin') {
+                return res.status(403).send({ message: 'forbidden access' })
+            }
+            next();
+        }
 
         /* products collection api */
 
@@ -52,6 +66,33 @@ async function run() {
             const result = await productsCollection.find(filter).toArray();
             res.send(result)
         })
+
+        app.get('/productsName', async (req, res) => {
+            const query = {};
+            const result = await productsCollection.find(query).project({ name: 1 }).toArray();
+            res.send(result)
+        })
+
+        /* add products collection */
+
+        app.get('/addproducts', verifyJwt, verifyAdmin, async (req, res) => {
+            const query = {};
+            const addProducts = await addproductsCollection.find(query).toArray();
+            res.send(addProducts);
+        })
+
+        app.post('/addproducts', verifyJwt, async (req, res) => {
+            const addProducts = req.body;
+            const result = await addproductsCollection.insertOne(addProducts);
+            res.send(result)
+        })
+        app.delete('/addproducts/:id', verifyJwt, async (req, res) => {
+            const id = req.params.id
+            const filter = { _id: ObjectId(id) }
+            const result = await addproductsCollection.deleteOne(filter);
+            res.send(result)
+        })
+
 
         /* options collection api*/
 
@@ -119,6 +160,46 @@ async function run() {
         app.post('/users', async (req, res) => {
             const user = req.body;
             const result = await usersCollection.insertOne(user)
+            res.send(result)
+        })
+
+        /* sellers api  */
+
+        app.get('/sellers', async (req, res) => {
+            const query = {};
+            const seller = await sellersCollection.find(query).toArray();
+            res.send(seller);
+        })
+
+        app.get('/sellers/admin/:email', async (req, res) => {
+            const email = req.params.email;
+            const query = { email }
+            const user = await sellersCollection.findOne(query);
+            res.send({ isAdmin: user?.role === 'admin' });
+        })
+
+        app.post('/sellers', async (req, res) => {
+            const sellers = req.body;
+            const resutls = await sellersCollection.insertOne(sellers);
+            res.send(resutls)
+        })
+
+        app.put('/sellers/admin/:id', verifyJwt, async (req, res) => {
+            const decodedEmail = req.decoded.email;
+            const query = { email: decodedEmail };
+            const sellers = await sellersCollection.findOne(query);
+            if (sellers?.role !== 'admin') {
+                return res.status(403).send({ message: 'forbidden access' })
+            }
+            const id = req.params.id;
+            const filter = { _id: ObjectId(id) };
+            const options = { upsert: true }
+            const updatedDoc = {
+                $set: {
+                    role: 'admin'
+                }
+            }
+            const result = await sellersCollection.updateOne(filter, updatedDoc, options);
             res.send(result)
         })
 
